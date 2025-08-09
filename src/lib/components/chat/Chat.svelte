@@ -1651,6 +1651,13 @@
 			params?.stream_response ??
 			true;
 
+		const stream_batch_size = Math.max(
+			model?.info?.params?.streaming_batch_size ?? 0,
+			$settings?.params?.streaming_batch_size ?? 0,
+			params?.streaming_batch_size ?? 0,
+			1
+			);
+
 		let messages = [
 			params?.system || $settings.system
 				? {
@@ -1757,6 +1764,7 @@
 				session_id: $socket?.id,
 				chat_id: $chatId,
 				id: responseMessageId,
+				stream_batch_size: stream_batch_size,
 
 				background_tasks: {
 					...(!$temporaryChatEnabled &&

@@ -684,6 +684,7 @@ def apply_params_to_form_data(form_data, model):
 
     open_webui_params = {
         "stream_response": bool,
+        "streaming_batch_size": int,
         "function_calling": str,
         "system": str,
     }
@@ -1815,6 +1816,8 @@ async def process_chat_response(
                     nonlocal content_blocks
 
                     response_tool_calls = []
+                    delta_count = 0
+                    delta_batch_size = max(1, int(form_data.get("metadata", {}).get("stream_batch_size") or 1))
 
                     async for line in response.body_iterator:
                         line = line.decode("utf-8") if isinstance(line, bytes) else line
@@ -2063,12 +2066,23 @@ async def process_chat_response(
                                                 ),
                                             }
 
-                                await event_emitter(
-                                    {
-                                        "type": "chat:completion",
-                                        "data": data,
-                                    }
-                                )
+                                if delta:
+                                    delta_count += 1
+                                    if delta_count >= delta_batch_size:
+                                        await event_emitter(
+                                            {
+                                                "type": "chat:completion",
+                                                "data": data,
+                                            }
+                                        )
+                                        delta_count = 0
+                                else:
+                                    await event_emitter(
+                                        {
+                                            "type": "chat:completion",
+                                            "data": data,
+                                        }
+                                    )
                         except Exception as e:
                             done = "data: [DONE]" in line
                             if done:
